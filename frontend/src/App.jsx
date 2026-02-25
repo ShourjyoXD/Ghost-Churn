@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Added useEffect import
 import axios from 'axios';
-import { Activity, AlertTriangle, CheckCircle, Smartphone, CreditCard } from 'lucide-react';
+import { Activity, AlertTriangle, CheckCircle, Smartphone, History } from 'lucide-react';
 
 function App() {
+  // 1. All Hooks must be inside the component
   const [formData, setFormData] = useState({
     tenure: 12,
     MonthlyCharges: 70,
@@ -15,14 +16,30 @@ function App() {
 
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [history, setHistory] = useState([]);
+
+  // 2. Fetch History Logic
+  const fetchHistory = async () => {
+    try {
+      const res = await axios.get('http://localhost:8000/api/history');
+      setHistory(res.data);
+    } catch (err) {
+      console.error("History fetch failed");
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // Connects to Node.js (8000) -> Flask (5000) -> ML Model
       const response = await axios.post('http://localhost:8000/api/predict', formData);
       setResult(response.data);
+      // 3. Refresh history after saving a new one
+      fetchHistory();
     } catch (error) {
       console.error(error);
       alert("System Offline: Check if both Backend and Flask are running.");
@@ -44,19 +61,16 @@ function App() {
         {/* INPUT SECTION */}
         <form onSubmit={handleSubmit} style={{ backgroundColor: '#1e293b', padding: '30px', borderRadius: '16px', border: '1px solid #334155' }}>
           <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}><Smartphone size={20}/> Usage Profile</h3>
-          
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '8px' }}>Tenure (Months)</label>
             <input type="number" value={formData.tenure} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', background: '#334155', color: '#fff' }} 
               onChange={(e) => setFormData({...formData, tenure: e.target.value})} />
           </div>
-
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '8px' }}>Monthly Charges ($)</label>
             <input type="number" value={formData.MonthlyCharges} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', background: '#334155', color: '#fff' }} 
               onChange={(e) => setFormData({...formData, MonthlyCharges: e.target.value})} />
           </div>
-
           <div style={{ marginBottom: '20px' }}>
             <label style={{ display: 'block', marginBottom: '8px' }}>Contract Plan</label>
             <select style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', background: '#334155', color: '#fff' }} 
@@ -66,7 +80,6 @@ function App() {
               <option value="2">Two Year</option>
             </select>
           </div>
-
           <button type="submit" disabled={loading} style={{ width: '100%', padding: '15px', backgroundColor: '#38bdf8', color: '#0f172a', fontWeight: 'bold', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
             {loading ? 'RUNNING AI...' : 'ANALYZE CUSTOMER'}
           </button>
@@ -81,16 +94,10 @@ function App() {
             </div>
           ) : (
             <div style={{ textAlign: 'center' }}>
-              {result.prediction === 1 ? (
-                <AlertTriangle size={80} color="#fb7185" />
-              ) : (
-                <CheckCircle size={80} color="#4ade80" />
-              )}
-              
+              {result.prediction === 1 ? <AlertTriangle size={80} color="#fb7185" /> : <CheckCircle size={80} color="#4ade80" />}
               <h2 style={{ fontSize: '28px', margin: '20px 0', color: result.prediction === 1 ? '#fb7185' : '#4ade80' }}>
                 {result.prediction === 1 ? 'CRITICAL RISK' : 'STABLE CUSTOMER'}
               </h2>
-              
               <div style={{ background: '#0f172a', padding: '20px', borderRadius: '12px' }}>
                 <p style={{ margin: 0, color: '#94a3b8' }}>Churn Probability</p>
                 <p style={{ fontSize: '48px', fontWeight: 'bold', margin: '5px 0' }}>{result.churn_probability}%</p>
@@ -98,6 +105,33 @@ function App() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* HISTORY TABLE SECTION */}
+      <div style={{ maxWidth: '1100px', margin: '40px auto 0 auto', backgroundColor: '#1e293b', padding: '30px', borderRadius: '16px', border: '1px solid #334155' }}>
+        <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}><History size={20}/> Prediction History</h3>
+        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8' }}>
+              <th style={{ padding: '12px' }}>Tenure</th>
+              <th style={{ padding: '12px' }}>Monthly</th>
+              <th style={{ padding: '12px' }}>Probability</th>
+              <th style={{ padding: '12px' }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {history.map((item, index) => (
+              <tr key={index} style={{ borderBottom: '1px solid #0f172a' }}>
+                <td style={{ padding: '12px' }}>{item.customerData.tenure} mo</td>
+                <td style={{ padding: '12px' }}>${item.customerData.MonthlyCharges}</td>
+                <td style={{ padding: '12px' }}>{item.churn_probability}%</td>
+                <td style={{ padding: '12px', color: item.prediction === 1 ? '#fb7185' : '#4ade80' }}>
+                  {item.prediction === 1 ? 'Risk' : 'Safe'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
