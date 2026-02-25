@@ -10,7 +10,7 @@ const PredictionSchema = new mongoose.Schema({
     },
     prediction: Number,
     churn_probability: Number,
+    remedy: String, 
     timestamp: { type: Date, default: Date.now }
 });
-
 export default mongoose.model('Prediction', PredictionSchema);
