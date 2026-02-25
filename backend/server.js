@@ -21,16 +21,15 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 const app = express();
 
 // Middleware
-app.use(express.json({ limit: '50mb' })); // Increased limit for large Excel files
+app.use(express.json({ limit: '50mb' })); 
 app.use(cors());
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('MongoDB Connected: Ghost-Churn Cluster'))
-    .catch(err => console.error('MongoDB Connection Error:', err));
+    .then(() => console.log('🚀 MongoDB Connected: Ghost-Churn Cluster'))
+    .catch(err => console.error('❌ MongoDB Connection Error:', err));
 
 // --- HELPER FUNCTION: Remedy Logic ---
-// We use this for both Single and Bulk predictions to keep logic consistent
 const calculateRemedy = (prediction, data) => {
     if (prediction === 0) return "Customer is stable. Maintain current engagement.";
     
@@ -106,16 +105,15 @@ app.post('/api/predict', async (req, res) => {
     }
 });
 
-// 2. Bulk Prediction (Excel/CSV)
+// 2. Bulk Prediction (Excel/CSV) with Auto-Pruning
 app.post('/api/predict/bulk', async (req, res) => {
     try {
-        const customers = req.body; // Expects an array of objects
+        const customers = req.body; 
         const results = [];
 
         for (const customer of customers) {
             const aiResponse = await axios.post('http://localhost:5000/predict', customer);
             const aiData = aiResponse.data;
-
             const remedy = calculateRemedy(aiData.prediction, customer);
 
             const record = new Prediction({
@@ -126,6 +124,15 @@ app.post('/api/predict/bulk', async (req, res) => {
             });
             await record.save();
             results.push({ ...customer, ...aiData, remedy });
+        }
+
+        // AUTO-PRUNING: Keeps database size under control
+        const count = await Prediction.countDocuments();
+        if (count > 100) {
+            const oldest = await Prediction.find().sort({ timestamp: 1 }).limit(count - 100);
+            const idsToDelete = oldest.map(doc => doc._id);
+            await Prediction.deleteMany({ _id: { $in: idsToDelete } });
+            console.log(`🧹 Pruned ${idsToDelete.length} old records.`);
         }
 
         res.json(results);
@@ -142,6 +149,16 @@ app.get('/api/history', async (req, res) => {
         res.json(history);
     } catch (error) {
         res.status(500).json({ error: "Could not fetch history" });
+    }
+});
+
+// 4. Manual Clear History
+app.delete('/api/history/clear', async (req, res) => {
+    try {
+        await Prediction.deleteMany({}); 
+        res.json({ message: "Logs cleared successfully." });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to clear logs" });
     }
 });
 

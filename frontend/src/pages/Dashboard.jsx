@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   Activity, AlertTriangle, CheckCircle, Smartphone, 
-  History, LogOut, Lightbulb, FileSpreadsheet, Upload, Loader2 
+  History, LogOut, Lightbulb, FileSpreadsheet, Upload, Trash2 
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
@@ -47,7 +47,20 @@ export default function Dashboard() {
     fetchHistory();
   }, []);
 
-  // 4. API Logic: Bulk File Upload
+  // 4. API Logic: Clear Logs
+  const clearLogs = async () => {
+    if (window.confirm("⚠️ Are you sure? This will permanently delete all prediction history from the database.")) {
+        try {
+            await axios.delete('http://localhost:8000/api/history/clear');
+            setHistory([]); 
+            alert("Database logs cleared successfully.");
+        } catch (err) {
+            alert("Failed to clear logs. Check if the server is running.");
+        }
+    }
+  };
+
+  // 5. API Logic: Bulk File Upload
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -63,41 +76,31 @@ export default function Dashboard() {
         const sheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(sheet);
 
-        // Optional: Ensure TotalCharges exists for the model
-        const processedData = jsonData.map(row => ({
-          ...row,
-          TotalCharges: row.TotalCharges || (row.tenure * row.MonthlyCharges) || 0
-        }));
-
-        const response = await axios.post('http://localhost:8000/api/predict/bulk', processedData);
-        alert(`Successfully processed ${response.data.length} customers!`);
+        // Send the parsed Excel data to the bulk backend route
+        const response = await axios.post('http://localhost:8000/api/predict/bulk', jsonData);
+        alert(`Batch Complete! Processed ${response.data.length} records.`);
         fetchHistory(); 
       } catch (err) {
         console.error(err);
-        alert("Bulk upload failed. Ensure your Excel columns match the required features.");
+        alert("Bulk upload failed. Ensure your Excel headers match the model features (tenure, MonthlyCharges, etc).");
       } finally {
         setBulkLoading(false);
-        e.target.value = null; // Reset input
+        e.target.value = null; // Reset file input
       }
     };
     reader.readAsArrayBuffer(file);
   };
 
-  // 5. API Logic: Single Prediction
+  // 6. API Logic: Single Prediction
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
-      // Ensure TotalCharges is updated before sending
-      const submissionData = {
-        ...formData,
-        TotalCharges: formData.tenure * formData.MonthlyCharges
-      };
-      const response = await axios.post('http://localhost:8000/api/predict', submissionData);
+      const response = await axios.post('http://localhost:8000/api/predict', formData);
       setResult(response.data);
       fetchHistory();
     } catch (error) {
-      alert("System Offline: Ensure Node, Flask, and MongoDB are active.");
+      alert("System Offline: Check your Backend, Flask, and MongoDB connection.");
     }
     setLoading(false);
   };
@@ -121,7 +124,7 @@ export default function Dashboard() {
         <div style={{ marginBottom: '30px', padding: '30px', border: '2px dashed #334155', backgroundColor: '#1e293b', borderRadius: '16px', textAlign: 'center' }}>
           <FileSpreadsheet color="#38bdf8" size={40} style={{ marginBottom: '10px' }} />
           <h3 style={{ margin: '0 0 10px 0' }}>Enterprise Batch Processing</h3>
-          <p style={{ color: '#94a3b8', marginBottom: '20px' }}>Upload an Excel file to analyze entire customer segments at once.</p>
+          <p style={{ color: '#94a3b8', marginBottom: '20px' }}>Upload an Excel file to analyze large datasets instantly.</p>
           
           <label style={{ 
             backgroundColor: bulkLoading ? '#64748b' : '#38bdf8', 
@@ -134,7 +137,7 @@ export default function Dashboard() {
             alignItems: 'center',
             gap: '10px'
           }}>
-            {bulkLoading ? 'Processing File...' : <><Upload size={18} /> Choose Excel/CSV File</>}
+            {bulkLoading ? 'Analyzing Records...' : <><Upload size={18} /> Upload Data Sheet</>}
             <input 
               type="file" 
               accept=".xlsx, .xls, .csv" 
@@ -201,7 +204,7 @@ export default function Dashboard() {
             {!result ? (
               <div style={{ textAlign: 'center', color: '#64748b' }}>
                 <Activity size={48} style={{ marginBottom: '10px', opacity: 0.3 }} />
-                <p>Results will appear here</p>
+                <p>Awaiting Customer Data...</p>
               </div>
             ) : (
               <div style={{ textAlign: 'center', width: '100%' }}>
@@ -225,41 +228,64 @@ export default function Dashboard() {
         </div>
 
         {/* HISTORY LOG SECTION */}
-        <div style={{ marginTop: '40px', backgroundColor: '#1e293b', padding: '30px', borderRadius: '16px', border: '1px solid #334155' }}>
-          <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#f1f5f9' }}>
-            <History size={20} color="#38bdf8" /> Prediction Audit Log
-          </h3>
-          {history.length === 0 ? (
-            <p style={{ color: '#64748b', textAlign: 'center', padding: '20px' }}>No previous records found.</p>
-          ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '13px' }}>
-                    <th style={{ padding: '12px' }}>Customer Data</th>
-                    <th style={{ padding: '12px' }}>Risk %</th>
-                    <th style={{ padding: '12px' }}>Remedy</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map((item, index) => (
-                    <tr key={index} style={{ borderBottom: '1px solid #0f172a', fontSize: '14px' }}>
-                      <td style={{ padding: '12px' }}>
-                        <div style={{ fontWeight: 'bold' }}>{item.customerData.tenure} Months</div>
-                        <div style={{ fontSize: '12px', color: '#94a3b8' }}>${item.customerData.MonthlyCharges}/mo</div>
-                      </td>
-                      <td style={{ padding: '12px', fontWeight: 'bold', color: item.prediction === 1 ? '#fb7185' : '#4ade80' }}>
-                        {item.churn_probability}%
-                      </td>
-                      <td style={{ padding: '12px', color: '#cbd5e1', fontSize: '13px' }}>
-                        {item.remedy}
-                      </td>
+        <div style={{ marginTop: '50px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#f1f5f9', margin: 0 }}>
+              <History size={20} color="#38bdf8" /> Prediction Audit Log
+            </h3>
+            <button 
+              onClick={clearLogs} 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                background: 'rgba(251, 113, 133, 0.1)', 
+                color: '#fb7185', 
+                border: '1px solid #fb7185', 
+                padding: '6px 14px', 
+                borderRadius: '6px', 
+                cursor: 'pointer',
+                fontSize: '13px',
+                fontWeight: 'bold'
+              }}
+            >
+              <Trash2 size={16} /> Clear All History
+            </button>
+          </div>
+
+          <div style={{ backgroundColor: '#1e293b', padding: '20px', borderRadius: '16px', border: '1px solid #334155' }}>
+            {history.length === 0 ? (
+              <p style={{ color: '#64748b', textAlign: 'center', padding: '20px' }}>No previous records found in the system.</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid #334155', color: '#94a3b8', fontSize: '13px' }}>
+                      <th style={{ padding: '12px' }}>Customer Stats</th>
+                      <th style={{ padding: '12px' }}>Churn Risk</th>
+                      <th style={{ padding: '12px' }}>Action Plan</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody>
+                    {history.map((item, index) => (
+                      <tr key={index} style={{ borderBottom: '1px solid #0f172a', fontSize: '14px' }}>
+                        <td style={{ padding: '12px' }}>
+                          <div style={{ fontWeight: 'bold', color: '#f1f5f9' }}>{item.customerData.tenure} Months</div>
+                          <div style={{ fontSize: '12px', color: '#94a3b8' }}>${item.customerData.MonthlyCharges}/mo</div>
+                        </td>
+                        <td style={{ padding: '12px', fontWeight: 'bold', color: item.prediction === 1 ? '#fb7185' : '#4ade80' }}>
+                          {item.churn_probability}%
+                        </td>
+                        <td style={{ padding: '12px', color: '#cbd5e1', fontSize: '13px', maxWidth: '300px' }}>
+                          {item.remedy}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
