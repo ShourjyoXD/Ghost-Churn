@@ -173,3 +173,4 @@ app.delete('/api/history/clear', async (req, res) => {
 
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => console.log(`Backend Server active on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
