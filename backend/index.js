@@ -21,13 +21,13 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 const app = express();
 
 // Middleware
-app.use(express.json({ limit: '50mb' })); 
+app.use(express.json({ limit: '50mb' }));
 app.use(cors());
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log('MongoDB Connected: Ghost-Churn Cluster'))
-    .catch(err => console.error(' MongoDB Connection Error:', err));
+    .catch(err => console.error('MongoDB Connection Error:', err));
 
 // --- HELPER FUNCTION: Remedy Logic ---
 const calculateRemedy = (prediction, data) => {
@@ -44,10 +44,17 @@ const calculateRemedy = (prediction, data) => {
 
 // --- ROUTES ---
 
+// Health-check route
 app.get('/', (req, res) => res.send('Ghost-Churn API is running...'));
 
-// --- AUTHENTICATION ---
+// Optional: Handle POST to root gracefully
+app.post('/', (req, res) => {
+    res.status(405).json({
+        error: "POST not allowed at root. Use /api/predict instead."
+    });
+});
 
+// --- AUTHENTICATION ---
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -94,7 +101,7 @@ app.post('/api/predict', async (req, res) => {
             customerData: req.body,
             prediction: aiResult.prediction,
             churn_probability: aiResult.churn_probability,
-            remedy: remedy 
+            remedy: remedy
         });
         await newRecord.save();
 
@@ -105,10 +112,10 @@ app.post('/api/predict', async (req, res) => {
     }
 });
 
-// 2. Bulk Prediction (Excel/CSV) with Auto-Pruning
+// 2. Bulk Prediction
 app.post('/api/predict/bulk', async (req, res) => {
     try {
-        const customers = req.body; 
+        const customers = req.body;
         const results = [];
 
         for (const customer of customers) {
@@ -126,7 +133,7 @@ app.post('/api/predict/bulk', async (req, res) => {
             results.push({ ...customer, ...aiData, remedy });
         }
 
-        // AUTO-PRUNING: Keeps database size under control
+        // Auto-pruning
         const count = await Prediction.countDocuments();
         if (count > 100) {
             const oldest = await Prediction.find().sort({ timestamp: 1 }).limit(count - 100);
@@ -152,10 +159,10 @@ app.get('/api/history', async (req, res) => {
     }
 });
 
-// 4. Manual Clear History
+// 4. Clear History
 app.delete('/api/history/clear', async (req, res) => {
     try {
-        await Prediction.deleteMany({}); 
+        await Prediction.deleteMany({});
         res.json({ message: "Logs cleared successfully." });
     } catch (error) {
         res.status(500).json({ error: "Failed to clear logs" });
