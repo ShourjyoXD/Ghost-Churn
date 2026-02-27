@@ -26,8 +26,8 @@ app.use(cors());
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('🚀 MongoDB Connected: Ghost-Churn Cluster'))
-    .catch(err => console.error('❌ MongoDB Connection Error:', err));
+    .then(() => console.log('MongoDB Connected: Ghost-Churn Cluster'))
+    .catch(err => console.error(' MongoDB Connection Error:', err));
 
 // --- HELPER FUNCTION: Remedy Logic ---
 const calculateRemedy = (prediction, data) => {
@@ -85,7 +85,7 @@ app.post('/api/auth/login', async (req, res) => {
 // 1. Single Prediction
 app.post('/api/predict', async (req, res) => {
     try {
-        const response = await axios.post('http://localhost:5000/predict', req.body);
+        const response = await axios.post(process.env.FLASK_URL, req.body);
         const aiResult = response.data;
 
         const remedy = calculateRemedy(aiResult.prediction, req.body);
