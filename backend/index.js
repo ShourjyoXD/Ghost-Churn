@@ -92,7 +92,8 @@ app.post('/api/auth/login', async (req, res) => {
 // 1. Single Prediction
 app.post('/api/predict', async (req, res) => {
     try {
-        const response = await axios.post(process.env.FLASK_URL, req.body);
+        // FIX: Always call Flask /predict endpoint
+        const response = await axios.post(`${process.env.FLASK_URL}/predict`, req.body);
         const aiResult = response.data;
 
         const remedy = calculateRemedy(aiResult.prediction, req.body);
@@ -119,7 +120,8 @@ app.post('/api/predict/bulk', async (req, res) => {
         const results = [];
 
         for (const customer of customers) {
-            const aiResponse = await axios.post(process.env.FLASK_URL, customer);
+            // FIX: Always call Flask /predict endpoint
+            const aiResponse = await axios.post(`${process.env.FLASK_URL}/predict`, customer);
             const aiData = aiResponse.data;
             const remedy = calculateRemedy(aiData.prediction, customer);
 
