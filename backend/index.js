@@ -112,7 +112,7 @@ app.post('/api/predict/bulk', async (req, res) => {
         const results = [];
 
         for (const customer of customers) {
-            const aiResponse = await axios.post('http://localhost:5000/predict', customer);
+            const aiResponse = await axios.post(process.env.FLASK_URL, customer);
             const aiData = aiResponse.data;
             const remedy = calculateRemedy(aiData.prediction, customer);
 
