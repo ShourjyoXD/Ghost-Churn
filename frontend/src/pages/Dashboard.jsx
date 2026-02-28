@@ -36,7 +36,7 @@ export default function Dashboard() {
   // 3. API Logic: Fetch History
   const fetchHistory = async () => {
     try {
-      const res = await axios.get('http://localhost:8000/api/history');
+      const res = await axios.get('https://ghost-churn-backend.onrender.com/api/history');
       setHistory(res.data);
     } catch (err) {
       console.error("History fetch failed");
@@ -51,7 +51,7 @@ export default function Dashboard() {
   const clearLogs = async () => {
     if (window.confirm("⚠️ Are you sure? This will permanently delete all prediction history from the database.")) {
         try {
-            await axios.delete('http://localhost:8000/api/history/clear');
+            await axios.delete('https://ghost-churn-backend.onrender.com/api/history/clear');
             setHistory([]); 
             alert("Database logs cleared successfully.");
         } catch (err) {
@@ -77,7 +77,7 @@ export default function Dashboard() {
         const jsonData = XLSX.utils.sheet_to_json(sheet);
 
         // Send the parsed Excel data to the bulk backend route
-        const response = await axios.post('http://localhost:8000/api/predict/bulk', jsonData);
+        const response = await axios.post(`${process.env.REACT_APP_API_URL}/api/predict/bulk`, jsonData);
         alert(`Batch Complete! Processed ${response.data.length} records.`);
         fetchHistory(); 
       } catch (err) {
@@ -96,7 +96,7 @@ export default function Dashboard() {
     e.preventDefault();
     setLoading(true);
     try {
-      const response = await axios.post('http://localhost:8000/api/predict', formData);
+      const response = await axios.post('https://ghost-churn-backend.onrender.com/api/predict', formData);
       setResult(response.data);
       fetchHistory();
     } catch (error) {

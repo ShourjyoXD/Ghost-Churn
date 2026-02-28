@@ -22,3 +22,18 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+# Local environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Python environment files
+ml_service/.env
+backend/.env
+
+# Ignore node_modules and python cache while you're at it
+node_modules/
+__pycache__/
+*.pyc

@@ -12,7 +12,7 @@ export default function Auth() {
     e.preventDefault();
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
     try {
-      const { data } = await axios.post(`http://localhost:8000${endpoint}`, { email, password });
+      const { data } = await axios.post(`https://ghost-churn-backend.onrender.com${endpoint}`, { email, password });
       if (isLogin) {
         localStorage.setItem('token', data.token);
         navigate('/dashboard');
