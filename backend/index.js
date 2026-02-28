@@ -22,7 +22,11 @@ const app = express();
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
-app.use(cors());
+app.use(cors({
+    origin: 'https://ghost-churn-frontend.vercel.app/', 
+    methods: ['GET', 'POST', 'DELETE', 'PUT'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGO_URI)
